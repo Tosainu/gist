@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::Read;
+use std::io::{self, Read};
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
@@ -34,18 +34,24 @@ fn construct_headers() -> HeaderMap {
     headers
 }
 
-pub fn post(user: &str, token: &str, public: bool, description: &str, paths: &[PathBuf]) {
+pub fn post(
+    user: &str,
+    token: &str,
+    public: bool,
+    description: &str,
+    paths: &[PathBuf],
+) -> Result<(), Box<dyn std::error::Error>> {
     let files = paths
         .iter()
         .map(|p| {
             let mut buf = String::new();
-            let mut f = File::open(p).unwrap();
-            f.read_to_string(&mut buf).unwrap();
+            let mut f = File::open(p)?;
+            f.read_to_string(&mut buf)?;
 
             let filename = p.file_name().unwrap().to_str().unwrap().to_string();
-            (filename, FileMetadata { content: buf })
+            Ok((filename, FileMetadata { content: buf }))
         })
-        .collect();
+        .collect::<io::Result<_>>()?;
 
     let req = GistRequest {
         files,
@@ -62,8 +68,9 @@ pub fn post(user: &str, token: &str, public: bool, description: &str, paths: &[P
         .basic_auth(user, Some(token))
         .headers(construct_headers())
         .json(&req)
-        .send()
-        .unwrap();
+        .send()?;
     println!("{:#?}", res);
     println!("{:#?}", res.json::<GistResponse>());
+
+    Ok(())
 }
