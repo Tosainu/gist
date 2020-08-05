@@ -10,7 +10,8 @@ use reqwest::header::{HeaderMap, HeaderValue, USER_AGENT};
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct GistRequest {
     files: HashMap<String, FileMetadata>,
-    description: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
     public: bool,
 }
 
@@ -38,7 +39,7 @@ pub fn post(
     user: &str,
     token: &str,
     public: bool,
-    description: &str,
+    description: Option<&str>,
     paths: &[PathBuf],
 ) -> Result<(), Box<dyn std::error::Error>> {
     let files = paths
@@ -55,7 +56,7 @@ pub fn post(
 
     let req = GistRequest {
         files,
-        description: String::from(description),
+        description: description.map(String::from),
         public,
     };
     println!("{:#?}", req);

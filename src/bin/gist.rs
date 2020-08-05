@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &args.user,
         &args.token,
         !args.secret,
-        &args.description.unwrap(),
+        args.description.as_deref(),
         &args.files,
     )?;
 
