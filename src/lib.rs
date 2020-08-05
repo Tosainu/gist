@@ -35,7 +35,7 @@ fn construct_headers() -> HeaderMap {
     headers
 }
 
-pub fn post(
+pub fn upload(
     user: &str,
     token: &str,
     public: bool,

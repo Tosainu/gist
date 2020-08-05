@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .ok_or_else(|| anyhow!("empty config file")),
     }?;
 
-    gist::post(
+    gist::upload(
         &user,
         &token,
         !args.secret,
