@@ -6,7 +6,16 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
-use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, USER_AGENT};
+use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION, USER_AGENT};
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", content = "value")]
+pub enum Login {
+    #[serde(rename = "oauth")]
+    OAuth(String),
+    #[serde(rename = "personal_access_token")]
+    PersonalAccessToken { user: String, token: String },
+}
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct GistRequest {
@@ -37,8 +46,7 @@ fn construct_headers() -> HeaderMap {
 }
 
 pub fn upload(
-    user: &str,
-    token: &str,
+    login: &Login,
     public: bool,
     description: Option<&str>,
     paths: &[PathBuf],
@@ -65,12 +73,19 @@ pub fn upload(
     println!("{}", serde_json::to_string(&req).unwrap());
 
     let client = reqwest::blocking::Client::new();
-    let res = client
+    let mut builder = client
         .post("https://api.github.com/gists")
-        .basic_auth(user, Some(token))
         .headers(construct_headers())
-        .json(&req)
-        .send()?;
+        .json(&req);
+
+    match login {
+        Login::PersonalAccessToken { user, token } => {
+            builder = builder.basic_auth(user, Some(token))
+        }
+        Login::OAuth(token) => builder = builder.header(AUTHORIZATION, format!("token {}", token)),
+    }
+
+    let res = builder.send()?;
     println!("{:#?}", res);
     println!("{:#?}", res.json::<GistResponse>());
 

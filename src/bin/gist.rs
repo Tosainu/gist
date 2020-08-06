@@ -7,8 +7,7 @@ use anyhow::anyhow;
 use structopt::StructOpt;
 
 type Username = String;
-type Token = String;
-type Config = BTreeMap<Username, Token>;
+type Config = BTreeMap<Username, gist::Login>;
 
 #[derive(Debug, StructOpt)]
 #[structopt(about = "simple GitHub Gist CLI")]
@@ -28,20 +27,20 @@ struct Args {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::from_args();
 
-    let (user, token) = match (args.user, args.token) {
-        (Some(u), Some(t)) => Ok((u, t)),
+    let login = match (args.user, args.token) {
+        (Some(user), Some(token)) => Ok(gist::Login::PersonalAccessToken { user, token }),
         (Some(u), None) => load_config()?
-            .remove_entry(&u)
+            .remove(&u)
             .ok_or_else(|| anyhow!("token for '{}' not found", u)),
         _ => load_config()?
             .into_iter()
             .next()
+            .map(|l| l.1)
             .ok_or_else(|| anyhow!("empty config file")),
     }?;
 
     gist::upload(
-        &user,
-        &token,
+        &login,
         !args.secret,
         args.description.as_deref(),
         &args.files,
