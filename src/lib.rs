@@ -93,6 +93,32 @@ pub fn upload(
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct UserResponse {
+    pub login: String,
+    pub html_url: String,
+}
+
+pub fn user(login: &Login) -> reqwest::Result<UserResponse> {
+    let client = reqwest::blocking::Client::new();
+    let mut builder = client
+        .get("https://api.github.com/user")
+        .headers(construct_headers())
+        .header(
+            ACCEPT,
+            HeaderValue::from_static("application/vnd.github.v3+json"),
+        );
+
+    match login {
+        Login::PersonalAccessToken { user, token } => {
+            builder = builder.basic_auth(user, Some(token))
+        }
+        Login::OAuth(token) => builder = builder.header(AUTHORIZATION, format!("token {}", token)),
+    }
+
+    builder.send()?.json()
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct VerificationCodeRequest {
     client_id: String,
     scope: String,
@@ -145,7 +171,7 @@ pub fn request_access_token(
     client_id: &str,
     device_code: &str,
     interval: u64,
-) -> reqwest::Result<String> {
+) -> reqwest::Result<Login> {
     let req = AccessTokenRequest {
         client_id: String::from(client_id),
         device_code: String::from(device_code),
@@ -163,7 +189,9 @@ pub fn request_access_token(
             .send()?;
 
         match res.json::<AccessTokenResponse>()? {
-            AccessTokenResponse::AccessToken { access_token } => return Ok(access_token),
+            AccessTokenResponse::AccessToken { access_token } => {
+                return Ok(Login::OAuth(access_token))
+            }
             AccessTokenResponse::Error { error } => match error.as_str() {
                 "authorization_pending" => continue,
                 _ => panic!("{}", error), // TODO:
