@@ -17,6 +17,19 @@ pub enum Login {
     PersonalAccessToken { user: String, token: String },
 }
 
+trait RequestBuilder {
+    fn auth(self, login: &Login) -> Self;
+}
+
+impl RequestBuilder for reqwest::blocking::RequestBuilder {
+    fn auth(self, login: &Login) -> Self {
+        match login {
+            Login::OAuth(token) => self.header(AUTHORIZATION, format!("token {}", token)),
+            Login::PersonalAccessToken { user, token } => self.basic_auth(user, Some(token)),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct GistRequest {
     files: HashMap<String, FileMetadata>,
@@ -73,17 +86,11 @@ pub fn upload(
     println!("{}", serde_json::to_string(&req).unwrap());
 
     let client = reqwest::blocking::Client::new();
-    let mut builder = client
+    let builder = client
         .post("https://api.github.com/gists")
         .headers(construct_headers())
+        .auth(&login)
         .json(&req);
-
-    match login {
-        Login::PersonalAccessToken { user, token } => {
-            builder = builder.basic_auth(user, Some(token))
-        }
-        Login::OAuth(token) => builder = builder.header(AUTHORIZATION, format!("token {}", token)),
-    }
 
     let res = builder.send()?;
     println!("{:#?}", res);
@@ -100,20 +107,14 @@ pub struct UserResponse {
 
 pub fn user(login: &Login) -> reqwest::Result<UserResponse> {
     let client = reqwest::blocking::Client::new();
-    let mut builder = client
+    let builder = client
         .get("https://api.github.com/user")
         .headers(construct_headers())
         .header(
             ACCEPT,
             HeaderValue::from_static("application/vnd.github.v3+json"),
-        );
-
-    match login {
-        Login::PersonalAccessToken { user, token } => {
-            builder = builder.basic_auth(user, Some(token))
-        }
-        Login::OAuth(token) => builder = builder.header(AUTHORIZATION, format!("token {}", token)),
-    }
+        )
+        .auth(&login);
 
     builder.send()?.json()
 }
