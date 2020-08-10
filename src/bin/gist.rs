@@ -99,7 +99,8 @@ fn select_account(account: Account) -> Result<gist::Login, Box<dyn std::error::E
 }
 
 fn upload(login: &gist::Login, args: Upload) -> Result<(), Box<dyn std::error::Error>> {
-    gist::upload(
+    let client = gist::Client::build()?;
+    client.upload(
         &login,
         !args.secret,
         args.description.as_deref(),
@@ -112,15 +113,17 @@ fn upload(login: &gist::Login, args: Upload) -> Result<(), Box<dyn std::error::E
 fn login() -> Result<(), Box<dyn std::error::Error>> {
     const CLIENT_ID: &str = env!("GIST_CLI_CLIENT_ID");
 
-    let vc = gist::request_verification_code(CLIENT_ID, "gist")?;
+    let client = gist::Client::build()?;
+
+    let vc = client.request_verification_code(CLIENT_ID, "gist")?;
 
     println!("open {} and enter '{}'", vc.verification_uri, vc.user_code);
 
-    let login = gist::request_access_token(CLIENT_ID, &vc.device_code, vc.interval)?;
+    let login = client.request_access_token(CLIENT_ID, &vc.device_code, vc.interval)?;
 
     println!("{:#?}", login);
 
-    let u = gist::user(&login)?;
+    let u = client.user(&login)?;
     println!("{:#?}", u);
 
     let mut cfg = load_config()?;

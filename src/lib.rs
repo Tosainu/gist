@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
-use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION, USER_AGENT};
+use reqwest::header::{HeaderValue, ACCEPT, AUTHORIZATION};
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "value")]
@@ -52,71 +52,10 @@ struct GistResponse {
     git_push_url: String,
 }
 
-fn construct_headers() -> HeaderMap {
-    let mut headers = HeaderMap::new();
-    headers.insert(USER_AGENT, HeaderValue::from_static("reqwest"));
-    headers
-}
-
-pub fn upload(
-    login: &Login,
-    public: bool,
-    description: Option<&str>,
-    paths: &[PathBuf],
-) -> Result<(), Box<dyn std::error::Error>> {
-    let files = paths
-        .iter()
-        .map(|p| {
-            let mut buf = String::new();
-            let mut f = File::open(p)?;
-            f.read_to_string(&mut buf)?;
-
-            let filename = p.file_name().unwrap().to_str().unwrap().to_string();
-            Ok((filename, FileMetadata { content: buf }))
-        })
-        .collect::<io::Result<_>>()?;
-
-    let req = GistRequest {
-        files,
-        description: description.map(String::from),
-        public,
-    };
-    println!("{:#?}", req);
-
-    println!("{}", serde_json::to_string(&req).unwrap());
-
-    let client = reqwest::blocking::Client::new();
-    let builder = client
-        .post("https://api.github.com/gists")
-        .headers(construct_headers())
-        .auth(&login)
-        .json(&req);
-
-    let res = builder.send()?;
-    println!("{:#?}", res);
-    println!("{:#?}", res.json::<GistResponse>());
-
-    Ok(())
-}
-
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct UserResponse {
     pub login: String,
     pub html_url: String,
-}
-
-pub fn user(login: &Login) -> reqwest::Result<UserResponse> {
-    let client = reqwest::blocking::Client::new();
-    let builder = client
-        .get("https://api.github.com/user")
-        .headers(construct_headers())
-        .header(
-            ACCEPT,
-            HeaderValue::from_static("application/vnd.github.v3+json"),
-        )
-        .auth(&login);
-
-    builder.send()?.json()
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -133,27 +72,6 @@ pub struct VerificationCodeResponse {
     pub interval: u64,
 }
 
-pub fn request_verification_code(
-    client_id: &str,
-    scope: &str,
-) -> reqwest::Result<VerificationCodeResponse> {
-    let req = VerificationCodeRequest {
-        client_id: String::from(client_id),
-        scope: String::from(scope),
-    };
-    let client = reqwest::blocking::Client::new();
-    let res = client
-        .post("https://github.com/login/device/code")
-        .headers(construct_headers())
-        .header(ACCEPT, HeaderValue::from_static("application/json"))
-        .json(&req)
-        .send()?;
-
-    println!("{:#?}", res);
-
-    res.json()
-}
-
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct AccessTokenRequest {
     client_id: String,
@@ -168,35 +86,121 @@ enum AccessTokenResponse {
     Error { error: String },
 }
 
-pub fn request_access_token(
-    client_id: &str,
-    device_code: &str,
-    interval: u64,
-) -> reqwest::Result<Login> {
-    let req = AccessTokenRequest {
-        client_id: String::from(client_id),
-        device_code: String::from(device_code),
-        grant_type: "urn:ietf:params:oauth:grant-type:device_code".to_owned(),
-    };
-    loop {
-        std::thread::sleep(Duration::from_secs(interval));
+pub struct Client {
+    client: reqwest::blocking::Client,
+}
 
-        let client = reqwest::blocking::Client::new();
-        let res = client
-            .post("https://github.com/login/oauth/access_token")
-            .headers(construct_headers())
+impl Client {
+    pub fn build() -> reqwest::Result<Self> {
+        let b = reqwest::blocking::Client::builder().user_agent("reqwest");
+        Ok(Client { client: b.build()? })
+    }
+
+    pub fn user(&self, login: &Login) -> reqwest::Result<UserResponse> {
+        let builder = self
+            .client
+            .get("https://api.github.com/user")
+            .header(
+                ACCEPT,
+                HeaderValue::from_static("application/vnd.github.v3+json"),
+            )
+            .auth(&login);
+
+        builder.send()?.json()
+    }
+
+    pub fn upload(
+        &self,
+        login: &Login,
+        public: bool,
+        description: Option<&str>,
+        paths: &[PathBuf],
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let files = paths
+            .iter()
+            .map(|p| {
+                let mut buf = String::new();
+                let mut f = File::open(p)?;
+                f.read_to_string(&mut buf)?;
+
+                let filename = p.file_name().unwrap().to_str().unwrap().to_string();
+                Ok((filename, FileMetadata { content: buf }))
+            })
+            .collect::<io::Result<_>>()?;
+
+        let req = GistRequest {
+            files,
+            description: description.map(String::from),
+            public,
+        };
+        println!("{:#?}", req);
+
+        println!("{}", serde_json::to_string(&req).unwrap());
+
+        let builder = self
+            .client
+            .post("https://api.github.com/gists")
+            .auth(&login)
+            .json(&req);
+
+        let res = builder.send()?;
+        println!("{:#?}", res);
+        println!("{:#?}", res.json::<GistResponse>());
+
+        Ok(())
+    }
+
+    pub fn request_verification_code(
+        &self,
+        client_id: &str,
+        scope: &str,
+    ) -> reqwest::Result<VerificationCodeResponse> {
+        let req = VerificationCodeRequest {
+            client_id: String::from(client_id),
+            scope: String::from(scope),
+        };
+        let res = self
+            .client
+            .post("https://github.com/login/device/code")
             .header(ACCEPT, HeaderValue::from_static("application/json"))
             .json(&req)
             .send()?;
 
-        match res.json::<AccessTokenResponse>()? {
-            AccessTokenResponse::AccessToken { access_token } => {
-                return Ok(Login::OAuth(access_token))
+        println!("{:#?}", res);
+
+        res.json()
+    }
+
+    pub fn request_access_token(
+        &self,
+        client_id: &str,
+        device_code: &str,
+        interval: u64,
+    ) -> reqwest::Result<Login> {
+        let req = AccessTokenRequest {
+            client_id: String::from(client_id),
+            device_code: String::from(device_code),
+            grant_type: "urn:ietf:params:oauth:grant-type:device_code".to_owned(),
+        };
+        loop {
+            std::thread::sleep(Duration::from_secs(interval));
+
+            let res = self
+                .client
+                .post("https://github.com/login/oauth/access_token")
+                .header(ACCEPT, HeaderValue::from_static("application/json"))
+                .json(&req)
+                .send()?;
+
+            match res.json::<AccessTokenResponse>()? {
+                AccessTokenResponse::AccessToken { access_token } => {
+                    return Ok(Login::OAuth(access_token))
+                }
+                AccessTokenResponse::Error { error } => match error.as_str() {
+                    "authorization_pending" => continue,
+                    _ => panic!("{}", error), // TODO:
+                },
             }
-            AccessTokenResponse::Error { error } => match error.as_str() {
-                "authorization_pending" => continue,
-                _ => panic!("{}", error), // TODO:
-            },
         }
     }
 }
