@@ -10,7 +10,9 @@ pub fn upload(
     files: &Vec<PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let client = api::Client::build()?;
-    client.upload(&login, !secret, description, files)?;
+    let res = client.upload(&login, !secret, description, files)?;
+
+    println!("{}", res.html_url);
 
     Ok(())
 }

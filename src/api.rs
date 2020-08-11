@@ -39,11 +39,11 @@ struct FileMetadata {
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct GistResponse {
-    id: String,
-    html_url: String,
-    git_pull_url: String,
-    git_push_url: String,
+pub struct GistResponse {
+    pub id: String,
+    pub html_url: String,
+    pub git_pull_url: String,
+    pub git_push_url: String,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -116,7 +116,7 @@ impl Client {
         public: bool,
         description: Option<&str>,
         paths: &[PathBuf],
-    ) -> Result<()> {
+    ) -> Result<GistResponse> {
         let files = paths
             .iter()
             .map(|p| {
@@ -134,9 +134,6 @@ impl Client {
             description: description.map(String::from),
             public,
         };
-        println!("{:#?}", req);
-
-        println!("{}", serde_json::to_string(&req).unwrap());
 
         let res = self
             .client
@@ -145,8 +142,7 @@ impl Client {
             .json(&req)
             .send()?;
         if res.status().is_success() {
-            println!("{:#?}", res.json::<GistResponse>());
-            Ok(())
+            Ok(res.json::<GistResponse>()?)
         } else {
             Err(Error::new(ErrorKind::ApiWithStatus {
                 status: res.status(),
