@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use reqwest::header::{HeaderValue, ACCEPT, AUTHORIZATION};
 
 use crate::config::Login;
+use crate::error::Result;
 
 trait RequestBuilder {
     fn auth(self, login: &Login) -> Self;
@@ -84,12 +85,12 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn build() -> reqwest::Result<Self> {
+    pub fn build() -> Result<Self> {
         let b = reqwest::blocking::Client::builder().user_agent("reqwest");
         Ok(Client { client: b.build()? })
     }
 
-    pub fn user(&self, login: &Login) -> reqwest::Result<UserResponse> {
+    pub fn user(&self, login: &Login) -> Result<UserResponse> {
         let builder = self
             .client
             .get("https://api.github.com/user")
@@ -99,7 +100,7 @@ impl Client {
             )
             .auth(&login);
 
-        builder.send()?.json()
+        Ok(builder.send()?.json()?)
     }
 
     pub fn upload(
@@ -108,7 +109,7 @@ impl Client {
         public: bool,
         description: Option<&str>,
         paths: &[PathBuf],
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<()> {
         let files = paths
             .iter()
             .map(|p| {
@@ -147,7 +148,7 @@ impl Client {
         &self,
         client_id: &str,
         scope: &str,
-    ) -> reqwest::Result<VerificationCodeResponse> {
+    ) -> Result<VerificationCodeResponse> {
         let req = VerificationCodeRequest {
             client_id: String::from(client_id),
             scope: String::from(scope),
@@ -161,7 +162,7 @@ impl Client {
 
         println!("{:#?}", res);
 
-        res.json()
+        Ok(res.json()?)
     }
 
     pub fn request_access_token(
@@ -169,7 +170,7 @@ impl Client {
         client_id: &str,
         device_code: &str,
         interval: u64,
-    ) -> reqwest::Result<Login> {
+    ) -> Result<Login> {
         let req = AccessTokenRequest {
             client_id: String::from(client_id),
             device_code: String::from(device_code),
