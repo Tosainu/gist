@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
+use crate::api;
 use crate::config;
-use crate::github;
 
 pub fn upload(
     login: &config::Login,
@@ -9,7 +9,7 @@ pub fn upload(
     description: Option<&str>,
     files: &Vec<PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let client = github::Client::build()?;
+    let client = api::Client::build()?;
     client.upload(&login, !secret, description, files)?;
 
     Ok(())
@@ -18,7 +18,7 @@ pub fn upload(
 pub fn login() -> Result<(), Box<dyn std::error::Error>> {
     const CLIENT_ID: &str = env!("GIST_CLI_CLIENT_ID");
 
-    let client = github::Client::build()?;
+    let client = api::Client::build()?;
 
     let vc = client.request_verification_code(CLIENT_ID, "gist")?;
 
