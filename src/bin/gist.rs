@@ -7,7 +7,7 @@ use anyhow::anyhow;
 use structopt::StructOpt;
 
 type Username = String;
-type Config = BTreeMap<Username, gist::Login>;
+type Config = BTreeMap<Username, gist::github::Login>;
 
 #[derive(Debug, StructOpt)]
 #[structopt(about = "simple GitHub Gist CLI")]
@@ -74,13 +74,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
-fn select_account(account: Account) -> Result<gist::Login, Box<dyn std::error::Error>> {
+fn select_account(account: Account) -> Result<gist::github::Login, Box<dyn std::error::Error>> {
     if let Some(token) = account.access_token {
-        return Ok(gist::Login::OAuth(token));
+        return Ok(gist::github::Login::OAuth(token));
     }
 
     if let Some((user, token)) = account.user_and_token {
-        return Ok(gist::Login::PersonalAccessToken { user, token });
+        return Ok(gist::github::Login::PersonalAccessToken { user, token });
     }
 
     let login = if let Some(key) = account.config {
@@ -98,8 +98,8 @@ fn select_account(account: Account) -> Result<gist::Login, Box<dyn std::error::E
     Ok(login)
 }
 
-fn upload(login: &gist::Login, args: Upload) -> Result<(), Box<dyn std::error::Error>> {
-    let client = gist::Client::build()?;
+fn upload(login: &gist::github::Login, args: Upload) -> Result<(), Box<dyn std::error::Error>> {
+    let client = gist::github::Client::build()?;
     client.upload(
         &login,
         !args.secret,
@@ -113,7 +113,7 @@ fn upload(login: &gist::Login, args: Upload) -> Result<(), Box<dyn std::error::E
 fn login() -> Result<(), Box<dyn std::error::Error>> {
     const CLIENT_ID: &str = env!("GIST_CLI_CLIENT_ID");
 
-    let client = gist::Client::build()?;
+    let client = gist::github::Client::build()?;
 
     let vc = client.request_verification_code(CLIENT_ID, "gist")?;
 
