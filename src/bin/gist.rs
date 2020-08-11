@@ -60,10 +60,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::from_args();
 
     match args.command {
-        Subcommand::Login => login(),
+        Subcommand::Login => gist::app::login(),
         Subcommand::Upload(u) => {
             let l = select_account(args.account)?;
-            upload(&l, u)
+            gist::app::upload(&l, u.secret, u.description.as_deref(), &u.files)
         }
     }
 }
@@ -90,39 +90,4 @@ fn select_account(account: Account) -> Result<gist::config::Login, Box<dyn std::
     }?;
 
     Ok(login)
-}
-
-fn upload(login: &gist::config::Login, args: Upload) -> Result<(), Box<dyn std::error::Error>> {
-    let client = gist::github::Client::build()?;
-    client.upload(
-        &login,
-        !args.secret,
-        args.description.as_deref(),
-        &args.files,
-    )?;
-
-    Ok(())
-}
-
-fn login() -> Result<(), Box<dyn std::error::Error>> {
-    const CLIENT_ID: &str = env!("GIST_CLI_CLIENT_ID");
-
-    let client = gist::github::Client::build()?;
-
-    let vc = client.request_verification_code(CLIENT_ID, "gist")?;
-
-    println!("open {} and enter '{}'", vc.verification_uri, vc.user_code);
-
-    let login = client.request_access_token(CLIENT_ID, &vc.device_code, vc.interval)?;
-
-    println!("{:#?}", login);
-
-    let u = client.user(&login)?;
-    println!("{:#?}", u);
-
-    let mut cfg = gist::config::load_config()?;
-    cfg.insert(u.login, login); // TODO: check exisiting entry
-    gist::config::save_config(&cfg)?;
-
-    Ok(())
 }
