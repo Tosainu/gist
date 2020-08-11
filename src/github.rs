@@ -8,14 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use reqwest::header::{HeaderValue, ACCEPT, AUTHORIZATION};
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", content = "value")]
-pub enum Login {
-    #[serde(rename = "oauth")]
-    OAuth(String),
-    #[serde(rename = "personal_access_token")]
-    PersonalAccessToken { user: String, token: String },
-}
+use crate::config::Login;
 
 trait RequestBuilder {
     fn auth(self, login: &Login) -> Self;

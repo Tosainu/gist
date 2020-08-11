@@ -1,13 +1,7 @@
-use std::collections::BTreeMap;
-use std::fs::File;
-use std::io::{BufReader, BufWriter};
 use std::path::PathBuf;
 
 use anyhow::anyhow;
 use structopt::StructOpt;
-
-type Username = String;
-type Config = BTreeMap<Username, gist::github::Login>;
 
 #[derive(Debug, StructOpt)]
 #[structopt(about = "simple GitHub Gist CLI")]
@@ -74,21 +68,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
-fn select_account(account: Account) -> Result<gist::github::Login, Box<dyn std::error::Error>> {
+fn select_account(account: Account) -> Result<gist::config::Login, Box<dyn std::error::Error>> {
     if let Some(token) = account.access_token {
-        return Ok(gist::github::Login::OAuth(token));
+        return Ok(gist::config::Login::OAuth(token));
     }
 
     if let Some((user, token)) = account.user_and_token {
-        return Ok(gist::github::Login::PersonalAccessToken { user, token });
+        return Ok(gist::config::Login::PersonalAccessToken { user, token });
     }
 
     let login = if let Some(key) = account.config {
-        load_config()?
+        gist::config::load_config()?
             .remove(&key)
             .ok_or_else(|| anyhow!("token for '{}' not found", key))
     } else {
-        load_config()?
+        gist::config::load_config()?
             .into_iter()
             .next()
             .map(|l| l.1)
@@ -98,7 +92,7 @@ fn select_account(account: Account) -> Result<gist::github::Login, Box<dyn std::
     Ok(login)
 }
 
-fn upload(login: &gist::github::Login, args: Upload) -> Result<(), Box<dyn std::error::Error>> {
+fn upload(login: &gist::config::Login, args: Upload) -> Result<(), Box<dyn std::error::Error>> {
     let client = gist::github::Client::build()?;
     client.upload(
         &login,
@@ -126,31 +120,9 @@ fn login() -> Result<(), Box<dyn std::error::Error>> {
     let u = client.user(&login)?;
     println!("{:#?}", u);
 
-    let mut cfg = load_config()?;
+    let mut cfg = gist::config::load_config()?;
     cfg.insert(u.login, login); // TODO: check exisiting entry
-    save_config(&cfg)?;
+    gist::config::save_config(&cfg)?;
 
-    Ok(())
-}
-
-fn config_path() -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let config_dir =
-        dirs::config_dir().ok_or_else(|| anyhow!("couldn't find the configuration directory"))?;
-    Ok(config_dir.join("gist").join("config.json"))
-}
-
-fn load_config() -> Result<Config, Box<dyn std::error::Error>> {
-    let path = config_path()?;
-    let file = File::open(path)?;
-    let reader = BufReader::new(file);
-
-    Ok(serde_json::from_reader(reader)?)
-}
-
-fn save_config(cfg: &Config) -> Result<(), Box<dyn std::error::Error>> {
-    let path = config_path()?;
-    let file = File::create(path)?;
-    let writer = BufWriter::new(file);
-    serde_json::to_writer_pretty(writer, cfg)?;
     Ok(())
 }
