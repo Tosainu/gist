@@ -16,21 +16,16 @@ struct Args {
 #[derive(Debug, StructOpt)]
 struct Account {
     /// Specify OAuth2 access token
-    #[structopt(short, conflicts_with_all = &["user-and-token", "config"])]
+    #[structopt(short = "t", conflicts_with_all = &["username", "password"])]
     access_token: Option<String>,
 
-    /// Specify user name and personal access token
-    #[structopt(
-        short,
-        conflicts_with_all = &["access-token", "config"],
-        parse(try_from_str = parse_user_and_token),
-        value_name = "user>:<token"
-    )]
-    user_and_token: Option<(String, String)>,
+    /// Specify user name / saved account name
+    #[structopt(short)]
+    username: Option<String>,
 
-    /// Use saved token
-    #[structopt(short, conflicts_with_all = &["access-token", "user-and-token"])]
-    config: Option<String>,
+    /// Specify personal access token
+    #[structopt(short, requires = "username")]
+    password: Option<String>,
 }
 
 #[derive(Debug, StructOpt)]
@@ -47,13 +42,6 @@ struct Upload {
     description: Option<String>,
     #[structopt(name = "FILES", parse(from_os_str), required = true)]
     files: Vec<PathBuf>,
-}
-
-fn parse_user_and_token(s: &str) -> Result<(String, String), Box<dyn std::error::Error>> {
-    let pos = s
-        .find(':')
-        .ok_or_else(|| anyhow!("no ':' found in '{}'", s))?;
-    Ok((s[..pos].parse()?, s[pos + 1..].parse()?))
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -73,21 +61,21 @@ fn select_account(account: Account) -> Result<gist::config::Login, Box<dyn std::
         return Ok(gist::config::Login::OAuth(token));
     }
 
-    if let Some((user, token)) = account.user_and_token {
-        return Ok(gist::config::Login::PersonalAccessToken { user, token });
+    if let Some(user) = account.username {
+        if let Some(token) = account.password {
+            return Ok(gist::config::Login::PersonalAccessToken { user, token });
+        } else {
+            let login = gist::config::load_config()?
+                .remove(&user)
+                .ok_or_else(|| anyhow!("token for '{}' not found", user))?;
+            return Ok(login);
+        }
     }
 
-    let login = if let Some(key) = account.config {
-        gist::config::load_config()?
-            .remove(&key)
-            .ok_or_else(|| anyhow!("token for '{}' not found", key))
-    } else {
-        gist::config::load_config()?
-            .into_iter()
-            .next()
-            .map(|l| l.1)
-            .ok_or_else(|| anyhow!("empty config file"))
-    }?;
-
+    let login = gist::config::load_config()?
+        .into_iter()
+        .next()
+        .map(|l| l.1)
+        .ok_or_else(|| anyhow!("empty config file"))?;
     Ok(login)
 }
