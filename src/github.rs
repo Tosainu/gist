@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use reqwest::header::{HeaderValue, ACCEPT, AUTHORIZATION};
 
 use crate::config::Login;
-use crate::error::Result;
+use crate::error::{Error, ErrorKind, Result};
 
 trait RequestBuilder {
     fn auth(self, login: &Login) -> Self;
@@ -91,16 +91,23 @@ impl Client {
     }
 
     pub fn user(&self, login: &Login) -> Result<UserResponse> {
-        let builder = self
+        let res = self
             .client
             .get("https://api.github.com/user")
             .header(
                 ACCEPT,
                 HeaderValue::from_static("application/vnd.github.v3+json"),
             )
-            .auth(&login);
-
-        Ok(builder.send()?.json()?)
+            .auth(&login)
+            .send()?;
+        if res.status().is_success() {
+            Ok(res.json()?)
+        } else {
+            Err(Error::new(ErrorKind::ApiWithStatus {
+                status: res.status(),
+                message: res.text()?,
+            }))
+        }
     }
 
     pub fn upload(
@@ -131,17 +138,21 @@ impl Client {
 
         println!("{}", serde_json::to_string(&req).unwrap());
 
-        let builder = self
+        let res = self
             .client
             .post("https://api.github.com/gists")
             .auth(&login)
-            .json(&req);
-
-        let res = builder.send()?;
-        println!("{:#?}", res);
-        println!("{:#?}", res.json::<GistResponse>());
-
-        Ok(())
+            .json(&req)
+            .send()?;
+        if res.status().is_success() {
+            println!("{:#?}", res.json::<GistResponse>());
+            Ok(())
+        } else {
+            Err(Error::new(ErrorKind::ApiWithStatus {
+                status: res.status(),
+                message: res.text()?,
+            }))
+        }
     }
 
     pub fn request_verification_code(
@@ -159,10 +170,14 @@ impl Client {
             .header(ACCEPT, HeaderValue::from_static("application/json"))
             .json(&req)
             .send()?;
-
-        println!("{:#?}", res);
-
-        Ok(res.json()?)
+        if res.status().is_success() {
+            Ok(res.json()?)
+        } else {
+            Err(Error::new(ErrorKind::ApiWithStatus {
+                status: res.status(),
+                message: res.text()?,
+            }))
+        }
     }
 
     pub fn request_access_token(
@@ -186,14 +201,21 @@ impl Client {
                 .json(&req)
                 .send()?;
 
-            match res.json::<AccessTokenResponse>()? {
-                AccessTokenResponse::AccessToken { access_token } => {
-                    return Ok(Login::OAuth(access_token))
+            if res.status().is_success() {
+                match res.json::<AccessTokenResponse>()? {
+                    AccessTokenResponse::AccessToken { access_token } => {
+                        return Ok(Login::OAuth(access_token))
+                    }
+                    AccessTokenResponse::Error { error } => match error.as_str() {
+                        "authorization_pending" => continue,
+                        _ => return Err(Error::new(ErrorKind::Api { message: error })),
+                    },
                 }
-                AccessTokenResponse::Error { error } => match error.as_str() {
-                    "authorization_pending" => continue,
-                    _ => panic!("{}", error), // TODO:
-                },
+            } else {
+                return Err(Error::new(ErrorKind::ApiWithStatus {
+                    status: res.status(),
+                    message: res.text()?,
+                }));
             }
         }
     }

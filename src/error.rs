@@ -16,6 +16,9 @@ pub type Result<T> = std::result::Result<T, Box<Error>>;
 #[derive(Debug)]
 pub enum ErrorKind {
     Api {
+        message: String,
+    },
+    ApiWithStatus {
         status: reqwest::StatusCode,
         message: String,
     },
@@ -32,9 +35,12 @@ impl fmt::Display for Error {
 impl fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ErrorKind::Api { status, message } => {
-                write!(f, "GitHub API returns error {}: {}", status, message)
-            }
+            ErrorKind::Api { message } => write!(f, "GitHub API returns error: {}", message),
+            ErrorKind::ApiWithStatus { status, message } => write!(
+                f,
+                "GitHub API returns error with status {}: {}",
+                status, message
+            ),
             ErrorKind::HttpClient(e) => e.fmt(f),
             ErrorKind::Io(e) => e.fmt(f),
         }
