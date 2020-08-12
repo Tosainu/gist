@@ -18,6 +18,30 @@ pub fn upload(
     Ok(())
 }
 
+pub fn list(login: Option<&config::Login>, username: Option<&str>) -> Result<()> {
+    let client = api::Client::build()?;
+    let r = client.list(login, username)?;
+    list_gists(&r);
+    Ok(())
+}
+
+pub fn list_starred(login: &config::Login) -> Result<()> {
+    let client = api::Client::build()?;
+    let r = client.list_starred(login)?;
+    list_gists(&r);
+    Ok(())
+}
+
+fn list_gists(gists: &[api::GistResponse]) {
+    for g in gists.iter() {
+        if let Some(d) = &g.description {
+            println!("{} {}", g.html_url, d);
+        } else {
+            println!("{}", g.html_url);
+        }
+    }
+}
+
 pub fn login() -> Result<()> {
     const CLIENT_ID: &str = env!("GIST_CLI_CLIENT_ID");
 

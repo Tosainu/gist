@@ -33,6 +33,7 @@ struct Account {
 enum Subcommand {
     Login,
     Upload(Upload),
+    List(List),
 }
 
 #[derive(Debug, StructOpt)]
@@ -45,6 +46,17 @@ struct Upload {
     files: Vec<PathBuf>,
 }
 
+#[derive(Debug, StructOpt)]
+struct List {
+    /// List the starred gists
+    #[structopt(long, conflicts_with = "username")]
+    starred: bool,
+
+    /// Specify user name
+    #[structopt(short)]
+    username: Option<String>,
+}
+
 fn main() -> Result<()> {
     let args = Args::from_args();
 
@@ -53,6 +65,14 @@ fn main() -> Result<()> {
         Subcommand::Upload(u) => {
             let l = select_account(args.account)?;
             gist::app::upload(&l, u.secret, u.description.as_deref(), &u.files)
+        }
+        Subcommand::List(opt) => {
+            let l = select_account(args.account);
+            if opt.starred {
+                gist::app::list_starred(&l?)
+            } else {
+                gist::app::list(l.ok().as_ref(), opt.username.as_deref())
+            }
         }
     }
 }

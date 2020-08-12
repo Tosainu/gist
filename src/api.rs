@@ -44,7 +44,10 @@ pub struct GistResponse {
     pub html_url: String,
     pub git_pull_url: String,
     pub git_push_url: String,
+    pub description: Option<String>,
 }
+
+pub type ListResponse = Vec<GistResponse>;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct UserResponse {
@@ -143,6 +146,45 @@ impl Client {
             .send()?;
         if res.status().is_success() {
             Ok(res.json::<GistResponse>()?)
+        } else {
+            Err(Error::new(ErrorKind::ApiWithStatus {
+                status: res.status(),
+                message: res.text()?,
+            }))
+        }
+    }
+
+    pub fn list(&self, login: Option<&Login>, username: Option<&str>) -> Result<ListResponse> {
+        let mut builder = if let Some(username) = username {
+            self.client
+                .get(&format!("https://api.github.com/users/{}/gists", username))
+        } else {
+            self.client.get("https://api.github.com/gists")
+        };
+
+        if let Some(login) = login {
+            builder = builder.auth(&login);
+        }
+
+        let res = builder.send()?;
+        if res.status().is_success() {
+            Ok(res.json::<ListResponse>()?)
+        } else {
+            Err(Error::new(ErrorKind::ApiWithStatus {
+                status: res.status(),
+                message: res.text()?,
+            }))
+        }
+    }
+
+    pub fn list_starred(&self, login: &Login) -> Result<ListResponse> {
+        let res = self
+            .client
+            .get("https://api.github.com/gists/starred")
+            .auth(&login)
+            .send()?;
+        if res.status().is_success() {
+            Ok(res.json::<ListResponse>()?)
         } else {
             Err(Error::new(ErrorKind::ApiWithStatus {
                 status: res.status(),
