@@ -31,9 +31,16 @@ struct Account {
 
 #[derive(Debug, StructOpt)]
 enum Subcommand {
-    Login,
+    Login(Login),
     Upload(Upload),
     List(List),
+}
+
+#[derive(Debug, StructOpt)]
+struct Login {
+    /// Client ID of your OAuth Apps
+    #[structopt(required = true)]
+    client_id: String,
 }
 
 #[derive(Debug, StructOpt)]
@@ -61,7 +68,7 @@ fn main() -> Result<()> {
     let args = Args::from_args();
 
     match args.command {
-        Subcommand::Login => gist::app::login(),
+        Subcommand::Login(opt) => gist::app::login(&opt.client_id),
         Subcommand::Upload(u) => {
             let l = select_account(args.account)?;
             gist::app::upload(&l, u.secret, u.description.as_deref(), &u.files)

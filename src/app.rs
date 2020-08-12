@@ -42,16 +42,14 @@ fn list_gists(gists: &[api::GistResponse]) {
     }
 }
 
-pub fn login() -> Result<()> {
-    const CLIENT_ID: &str = env!("GIST_CLI_CLIENT_ID");
-
+pub fn login(client_id: &str) -> Result<()> {
     let client = api::Client::build()?;
 
-    let vc = client.request_verification_code(CLIENT_ID, "gist")?;
+    let vc = client.request_verification_code(client_id, "gist")?;
 
     println!("open {} and enter '{}'", vc.verification_uri, vc.user_code);
 
-    let login = client.request_access_token(CLIENT_ID, &vc.device_code, vc.interval)?;
+    let login = client.request_access_token(client_id, &vc.device_code, vc.interval)?;
 
     println!("{:#?}", login);
 
