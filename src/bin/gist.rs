@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 
-use anyhow::anyhow;
 use structopt::StructOpt;
+
+use gist::error::{Error, ErrorKind, Result};
 
 #[derive(Debug, StructOpt)]
 #[structopt(about = "simple GitHub Gist CLI")]
@@ -44,7 +45,7 @@ struct Upload {
     files: Vec<PathBuf>,
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<()> {
     let args = Args::from_args();
 
     match args.command {
@@ -56,7 +57,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
-fn select_account(account: Account) -> Result<gist::config::Login, Box<dyn std::error::Error>> {
+fn select_account(account: Account) -> Result<gist::config::Login> {
     if let Some(token) = account.access_token {
         return Ok(gist::config::Login::OAuth(token));
     }
@@ -67,7 +68,7 @@ fn select_account(account: Account) -> Result<gist::config::Login, Box<dyn std::
         } else {
             let login = gist::config::load_config()?
                 .remove(&user)
-                .ok_or_else(|| anyhow!("token for '{}' not found", user))?;
+                .ok_or_else(|| Error::new(ErrorKind::AccountNotFoundInConfig { name: user }))?;
             return Ok(login);
         }
     }
@@ -76,6 +77,6 @@ fn select_account(account: Account) -> Result<gist::config::Login, Box<dyn std::
         .into_iter()
         .next()
         .map(|l| l.1)
-        .ok_or_else(|| anyhow!("empty config file"))?;
+        .ok_or_else(|| Error::new(ErrorKind::EmptyConfigurationFile))?;
     Ok(login)
 }

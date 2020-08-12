@@ -5,7 +5,6 @@ authors = ["Kenta Sato <tosainu.maple@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-anyhow = "1.0"
 dirs = "3.0"
 reqwest = { version = "0.10", features = ["blocking", "json"] }
 serde = { version = "1.0", features = ["derive"] }

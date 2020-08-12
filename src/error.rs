@@ -1,4 +1,5 @@
 use std::fmt;
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct Error {
@@ -22,6 +23,19 @@ pub enum ErrorKind {
         status: reqwest::StatusCode,
         message: String,
     },
+    ConfigDirectoryNotDetected,
+    EmptyConfigurationFile,
+    AccountNotFoundInConfig {
+        name: String,
+    },
+    InvalidConfigFormat {
+        path: PathBuf,
+        error: serde_json::Error,
+    },
+    SaveConfigFailure {
+        path: PathBuf,
+        error: serde_json::Error,
+    },
     HttpClient(reqwest::Error),
     Io(std::io::Error),
 }
@@ -41,6 +55,16 @@ impl fmt::Display for ErrorKind {
                 "GitHub API returns error with status {}: {}",
                 status, message
             ),
+            ErrorKind::ConfigDirectoryNotDetected =>
+                write!(f, "Default configuration directory not detected. $HOME or $XDG_CONFIG_FIR may not set"),
+            ErrorKind::EmptyConfigurationFile =>
+                write!(f, "Empty configuration file"),
+            ErrorKind::AccountNotFoundInConfig { name } =>
+                write!(f, "Cannot find account '{}' in configuration file", name),
+            ErrorKind::InvalidConfigFormat { path, error } =>
+                write!(f,"Cannot parse configuration file '{}': ", path.display()).and_then(move |_| error.fmt(f)),
+            ErrorKind::SaveConfigFailure { path, error } =>
+                write!(f,"Failed to save configuration file '{}': ", path.display()).and_then(move |_| error.fmt(f)),
             ErrorKind::HttpClient(e) => e.fmt(f),
             ErrorKind::Io(e) => e.fmt(f),
         }
