@@ -192,6 +192,22 @@ impl Client {
         }
     }
 
+    pub fn delete(&self, login: &Login, id: &str) -> Result<()> {
+        let res = self
+            .client
+            .delete(&format!("https://api.github.com/gists/{}", id))
+            .auth(&login)
+            .send()?;
+        if res.status().is_success() {
+            Ok(())
+        } else {
+            Err(Error::new(ErrorKind::ApiWithStatus {
+                status: res.status(),
+                message: res.text()?,
+            }))
+        }
+    }
+
     pub fn request_verification_code(
         &self,
         client_id: &str,

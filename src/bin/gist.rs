@@ -37,6 +37,8 @@ enum Subcommand {
     Upload(Upload),
     /// Browse the gists
     List(List),
+    /// Delete the gists
+    Delete(Delete),
 }
 
 #[derive(Debug, StructOpt)]
@@ -72,6 +74,13 @@ struct List {
     username: Option<String>,
 }
 
+#[derive(Debug, StructOpt)]
+struct Delete {
+    /// The ID of gist to delete
+    #[structopt(required = true)]
+    id: Vec<String>,
+}
+
 fn main() -> Result<()> {
     let args = Args::from_args();
 
@@ -88,6 +97,10 @@ fn main() -> Result<()> {
             } else {
                 gist::app::list(l.ok().as_ref(), opt.username.as_deref())
             }
+        }
+        Subcommand::Delete(opt) => {
+            let l = select_account(args.account)?;
+            gist::app::delete(&l, &opt.id)
         }
     }
 }

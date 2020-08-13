@@ -42,6 +42,16 @@ fn list_gists(gists: &[api::GistResponse]) {
     }
 }
 
+pub fn delete(login: &config::Login, id: &[String]) -> Result<()> {
+    let client = api::Client::build()?;
+    for i in id.into_iter() {
+        client.delete(login, &i)?;
+        println!("{}", i);
+    }
+    println!("Success!");
+    Ok(())
+}
+
 pub fn login(client_id: &str) -> Result<()> {
     let client = api::Client::build()?;
 
