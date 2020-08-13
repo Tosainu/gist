@@ -81,28 +81,31 @@ struct Delete {
     id: Vec<String>,
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let args = Args::from_args();
 
     match args.command {
-        Subcommand::Login(opt) => gist::app::login(&opt.client_id),
+        Subcommand::Login(opt) => gist::app::login(&opt.client_id).await?,
         Subcommand::Upload(u) => {
             let l = select_account(args.account)?;
-            gist::app::upload(&l, u.secret, u.description.as_deref(), &u.files)
+            gist::app::upload(&l, u.secret, u.description.as_deref(), &u.files).await?;
         }
         Subcommand::List(opt) => {
             let l = select_account(args.account);
             if opt.starred {
-                gist::app::list_starred(&l?)
+                gist::app::list_starred(&l?).await?;
             } else {
-                gist::app::list(l.ok().as_ref(), opt.username.as_deref())
+                gist::app::list(l.ok().as_ref(), opt.username.as_deref()).await?;
             }
         }
         Subcommand::Delete(opt) => {
             let l = select_account(args.account)?;
-            gist::app::delete(&l, &opt.id)
+            gist::app::delete(&l, &opt.id).await?;
         }
     }
+
+    Ok(())
 }
 
 fn select_account(account: Account) -> Result<gist::config::Login> {

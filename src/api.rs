@@ -15,7 +15,7 @@ trait RequestBuilder {
     fn auth(self, login: &Login) -> Self;
 }
 
-impl RequestBuilder for reqwest::blocking::RequestBuilder {
+impl RequestBuilder for reqwest::RequestBuilder {
     fn auth(self, login: &Login) -> Self {
         match login {
             Login::OAuth(token) => self.header(AUTHORIZATION, format!("token {}", token)),
@@ -83,16 +83,16 @@ enum AccessTokenResponse {
 }
 
 pub struct Client {
-    client: reqwest::blocking::Client,
+    client: reqwest::Client,
 }
 
 impl Client {
     pub fn build() -> Result<Self> {
-        let b = reqwest::blocking::Client::builder().user_agent("reqwest");
+        let b = reqwest::Client::builder().user_agent("reqwest");
         Ok(Client { client: b.build()? })
     }
 
-    pub fn user(&self, login: &Login) -> Result<UserResponse> {
+    pub async fn user(&self, login: &Login) -> Result<UserResponse> {
         let res = self
             .client
             .get("https://api.github.com/user")
@@ -101,18 +101,19 @@ impl Client {
                 HeaderValue::from_static("application/vnd.github.v3+json"),
             )
             .auth(&login)
-            .send()?;
+            .send()
+            .await?;
         if res.status().is_success() {
-            Ok(res.json()?)
+            Ok(res.json().await?)
         } else {
             Err(Error::new(ErrorKind::ApiWithStatus {
                 status: res.status(),
-                message: res.text()?,
+                message: res.text().await?,
             }))
         }
     }
 
-    pub fn upload(
+    pub async fn upload(
         &self,
         login: &Login,
         public: bool,
@@ -142,18 +143,23 @@ impl Client {
             .post("https://api.github.com/gists")
             .auth(&login)
             .json(&req)
-            .send()?;
+            .send()
+            .await?;
         if res.status().is_success() {
-            Ok(res.json::<GistResponse>()?)
+            Ok(res.json::<GistResponse>().await?)
         } else {
             Err(Error::new(ErrorKind::ApiWithStatus {
                 status: res.status(),
-                message: res.text()?,
+                message: res.text().await?,
             }))
         }
     }
 
-    pub fn list(&self, login: Option<&Login>, username: Option<&str>) -> Result<ListResponse> {
+    pub async fn list(
+        &self,
+        login: Option<&Login>,
+        username: Option<&str>,
+    ) -> Result<ListResponse> {
         let mut builder = if let Some(username) = username {
             self.client
                 .get(&format!("https://api.github.com/users/{}/gists", username))
@@ -165,50 +171,52 @@ impl Client {
             builder = builder.auth(&login);
         }
 
-        let res = builder.send()?;
+        let res = builder.send().await?;
         if res.status().is_success() {
-            Ok(res.json::<ListResponse>()?)
+            Ok(res.json::<ListResponse>().await?)
         } else {
             Err(Error::new(ErrorKind::ApiWithStatus {
                 status: res.status(),
-                message: res.text()?,
+                message: res.text().await?,
             }))
         }
     }
 
-    pub fn list_starred(&self, login: &Login) -> Result<ListResponse> {
+    pub async fn list_starred(&self, login: &Login) -> Result<ListResponse> {
         let res = self
             .client
             .get("https://api.github.com/gists/starred")
             .auth(&login)
-            .send()?;
+            .send()
+            .await?;
         if res.status().is_success() {
-            Ok(res.json::<ListResponse>()?)
+            Ok(res.json::<ListResponse>().await?)
         } else {
             Err(Error::new(ErrorKind::ApiWithStatus {
                 status: res.status(),
-                message: res.text()?,
+                message: res.text().await?,
             }))
         }
     }
 
-    pub fn delete(&self, login: &Login, id: &str) -> Result<()> {
+    pub async fn delete(&self, login: &Login, id: &str) -> Result<()> {
         let res = self
             .client
             .delete(&format!("https://api.github.com/gists/{}", id))
             .auth(&login)
-            .send()?;
+            .send()
+            .await?;
         if res.status().is_success() {
             Ok(())
         } else {
             Err(Error::new(ErrorKind::ApiWithStatus {
                 status: res.status(),
-                message: res.text()?,
+                message: res.text().await?,
             }))
         }
     }
 
-    pub fn request_verification_code(
+    pub async fn request_verification_code(
         &self,
         client_id: &str,
         scope: &str,
@@ -222,18 +230,19 @@ impl Client {
             .post("https://github.com/login/device/code")
             .header(ACCEPT, HeaderValue::from_static("application/json"))
             .json(&req)
-            .send()?;
+            .send()
+            .await?;
         if res.status().is_success() {
-            Ok(res.json()?)
+            Ok(res.json().await?)
         } else {
             Err(Error::new(ErrorKind::ApiWithStatus {
                 status: res.status(),
-                message: res.text()?,
+                message: res.text().await?,
             }))
         }
     }
 
-    pub fn request_access_token(
+    pub async fn request_access_token(
         &self,
         client_id: &str,
         device_code: &str,
@@ -245,17 +254,18 @@ impl Client {
             grant_type: "urn:ietf:params:oauth:grant-type:device_code".to_owned(),
         };
         loop {
-            std::thread::sleep(Duration::from_secs(interval));
+            tokio::time::delay_for(Duration::from_secs(interval)).await;
 
             let res = self
                 .client
                 .post("https://github.com/login/oauth/access_token")
                 .header(ACCEPT, HeaderValue::from_static("application/json"))
                 .json(&req)
-                .send()?;
+                .send()
+                .await?;
 
             if res.status().is_success() {
-                match res.json::<AccessTokenResponse>()? {
+                match res.json::<AccessTokenResponse>().await? {
                     AccessTokenResponse::AccessToken { access_token } => {
                         return Ok(Login::OAuth(access_token))
                     }
@@ -267,7 +277,7 @@ impl Client {
             } else {
                 return Err(Error::new(ErrorKind::ApiWithStatus {
                     status: res.status(),
-                    message: res.text()?,
+                    message: res.text().await?,
                 }));
             }
         }
