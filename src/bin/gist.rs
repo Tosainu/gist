@@ -31,8 +31,11 @@ struct Account {
 
 #[derive(Debug, StructOpt)]
 enum Subcommand {
+    /// Login to GitHub with OAuth2 device flow
     Login(Login),
+    /// Upload the files to GitHub Gist
     Upload(Upload),
+    /// Browse the gists
     List(List),
 }
 
@@ -45,10 +48,15 @@ struct Login {
 
 #[derive(Debug, StructOpt)]
 struct Upload {
+    /// Upload the files as secret gist
     #[structopt(short)]
     secret: bool,
+
+    /// Add a description to gist
     #[structopt(short)]
     description: Option<String>,
+
+    /// Specify the files to upload
     #[structopt(name = "FILES", parse(from_os_str), required = true)]
     files: Vec<PathBuf>,
 }

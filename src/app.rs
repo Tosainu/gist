@@ -8,7 +8,7 @@ pub fn upload(
     login: &config::Login,
     secret: bool,
     description: Option<&str>,
-    files: &Vec<PathBuf>,
+    files: &[PathBuf],
 ) -> Result<()> {
     let client = api::Client::build()?;
     let res = client.upload(&login, !secret, description, files)?;

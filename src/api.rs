@@ -34,7 +34,6 @@ struct GistRequest {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct FileMetadata {
-    // TODO: support binary file
     content: String,
 }
 
