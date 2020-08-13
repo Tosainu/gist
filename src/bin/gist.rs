@@ -87,9 +87,9 @@ async fn main() -> Result<()> {
 
     match args.command {
         Subcommand::Login(opt) => gist::app::login(&opt.client_id).await?,
-        Subcommand::Upload(u) => {
+        Subcommand::Upload(opt) => {
             let l = select_account(args.account)?;
-            gist::app::upload(&l, u.secret, u.description.as_deref(), &u.files).await?;
+            gist::app::upload(&l, opt.secret, opt.description.as_deref(), &opt.files).await?;
         }
         Subcommand::List(opt) => {
             let l = select_account(args.account);
@@ -113,13 +113,13 @@ fn select_account(account: Account) -> Result<gist::config::Login> {
         return Ok(gist::config::Login::OAuth(token));
     }
 
-    if let Some(user) = account.username {
+    if let Some(username) = account.username {
         if let Some(token) = account.password {
-            return Ok(gist::config::Login::PersonalAccessToken { user, token });
+            return Ok(gist::config::Login::PersonalAccessToken { username, token });
         } else {
             let login = gist::config::load_config()?
-                .remove(&user)
-                .ok_or_else(|| Error::new(ErrorKind::AccountNotFoundInConfig { name: user }))?;
+                .remove(&username)
+                .ok_or_else(|| Error::new(ErrorKind::AccountNotFoundInConfig { name: username }))?;
             return Ok(login);
         }
     }

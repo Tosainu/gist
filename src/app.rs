@@ -63,14 +63,13 @@ pub async fn login(client_id: &str) -> Result<()> {
         .request_access_token(client_id, &vc.device_code, vc.interval)
         .await?;
 
-    println!("{:#?}", login);
-
     let u = client.user(&login).await?;
-    println!("{:#?}", u);
 
     let mut cfg = config::load_config()?;
-    cfg.insert(u.login, login); // TODO: check exisiting entry
+    cfg.insert(u.login, login);
     config::save_config(&cfg)?;
+
+    println!("Success!");
 
     Ok(())
 }

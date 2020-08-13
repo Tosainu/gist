@@ -19,13 +19,15 @@ impl RequestBuilder for reqwest::RequestBuilder {
     fn auth(self, login: &Login) -> Self {
         match login {
             Login::OAuth(token) => self.header(AUTHORIZATION, format!("token {}", token)),
-            Login::PersonalAccessToken { user, token } => self.basic_auth(user, Some(token)),
+            Login::PersonalAccessToken { username, token } => {
+                self.basic_auth(username, Some(token))
+            }
         }
     }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct GistRequest {
+struct UploadRequest {
     files: HashMap<String, FileMetadata>,
     #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
@@ -132,7 +134,7 @@ impl Client {
             })
             .collect::<io::Result<_>>()?;
 
-        let req = GistRequest {
+        let req = UploadRequest {
             files,
             description: description.map(String::from),
             public,

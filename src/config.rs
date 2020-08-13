@@ -13,7 +13,7 @@ pub enum Login {
     #[serde(rename = "oauth")]
     OAuth(String),
     #[serde(rename = "personal_access_token")]
-    PersonalAccessToken { user: String, token: String },
+    PersonalAccessToken { username: String, token: String },
 }
 
 type Username = String;
