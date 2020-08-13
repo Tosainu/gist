@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::fs::File;
+use std::fs::{DirBuilder, File};
 use std::io::{BufReader, BufWriter};
 use std::path::PathBuf;
 
@@ -37,6 +37,10 @@ pub fn load_config() -> Result<Config> {
 
 pub fn save_config(cfg: &Config) -> Result<()> {
     let path = config_path()?;
+    let dir = path.parent().unwrap();
+    if !dir.exists() {
+        DirBuilder::new().recursive(true).create(dir)?;
+    }
     let file = File::create(&path)?;
     let writer = BufWriter::new(file);
     match serde_json::to_writer_pretty(writer, cfg) {

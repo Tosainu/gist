@@ -65,7 +65,7 @@ pub async fn login(client_id: &str) -> Result<()> {
 
     let u = client.user(&login).await?;
 
-    let mut cfg = config::load_config()?;
+    let mut cfg = config::load_config().unwrap_or_else(|_| config::Config::new());
     cfg.insert(u.login, login);
     config::save_config(&cfg)?;
 
