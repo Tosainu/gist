@@ -44,7 +44,7 @@ fn list_gists(gists: &[api::GistResponse]) {
 
 pub async fn delete(login: &config::Login, id: &[String]) -> Result<()> {
     let client = api::Client::build()?;
-    for i in id.into_iter() {
+    for i in id.iter() {
         client.delete(login, &i).await?;
         println!("{}", i);
     }
