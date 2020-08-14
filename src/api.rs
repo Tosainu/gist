@@ -2,11 +2,12 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, Read};
 use std::path::PathBuf;
-use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
 use reqwest::header::{HeaderValue, ACCEPT, AUTHORIZATION};
+
+use tokio::time;
 
 use crate::config::Login;
 use crate::error::{Error, ErrorKind, Result};
@@ -256,7 +257,7 @@ impl Client {
             grant_type: "urn:ietf:params:oauth:grant-type:device_code".to_owned(),
         };
         loop {
-            tokio::time::delay_for(Duration::from_secs(interval)).await;
+            time::delay_for(time::Duration::from_secs(interval)).await;
 
             let res = self
                 .client
