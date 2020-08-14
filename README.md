@@ -1,6 +1,8 @@
 gist
 ===
 
+![](https://github.com/Tosainu/gist/workflows/CI/badge.svg)
+
 GitHub Gist command-line tool.
 
 ## Usage
