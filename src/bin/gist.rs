@@ -58,12 +58,16 @@ struct Upload {
     #[structopt(short)]
     secret: bool,
 
+    /// Specify a default name of gist
+    #[structopt(short, default_value = "file.txt")]
+    filename: String,
+
     /// Add a description to gist
     #[structopt(short)]
     description: Option<String>,
 
     /// Specify the files to upload
-    #[structopt(name = "FILES", parse(from_os_str), required = true)]
+    #[structopt(name = "FILES", parse(from_os_str))]
     files: Vec<PathBuf>,
 }
 
@@ -98,7 +102,17 @@ async fn main() -> Result<()> {
         }
         Subcommand::Upload(opt) => {
             let l = select_account(path, args.account)?;
-            gist::app::upload(&l, opt.secret, opt.description.as_deref(), &opt.files).await?;
+            if opt.files.is_empty() {
+                gist::app::upload_from_stdin(
+                    &l,
+                    opt.secret,
+                    &opt.filename,
+                    opt.description.as_deref(),
+                )
+                .await?;
+            } else {
+                gist::app::upload(&l, opt.secret, opt.description.as_deref(), &opt.files).await?;
+            }
         }
         Subcommand::List(opt) => {
             let l = select_account(path, args.account);

@@ -1,7 +1,4 @@
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::{self, Read};
-use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
@@ -28,16 +25,16 @@ impl RequestBuilder for reqwest::RequestBuilder {
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct UploadRequest {
-    files: HashMap<String, FileMetadata>,
+pub struct UploadRequest {
+    pub files: HashMap<String, FileMetadata>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
-    public: bool,
+    pub description: Option<String>,
+    pub public: bool,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct FileMetadata {
-    content: String,
+pub struct FileMetadata {
+    pub content: String,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -116,31 +113,7 @@ impl Client {
         }
     }
 
-    pub async fn upload(
-        &self,
-        login: &Login,
-        public: bool,
-        description: Option<&str>,
-        paths: &[PathBuf],
-    ) -> Result<GistResponse> {
-        let files = paths
-            .iter()
-            .map(|p| {
-                let mut buf = String::new();
-                let mut f = File::open(p)?;
-                f.read_to_string(&mut buf)?;
-
-                let filename = p.file_name().unwrap().to_str().unwrap().to_string();
-                Ok((filename, FileMetadata { content: buf }))
-            })
-            .collect::<io::Result<_>>()?;
-
-        let req = UploadRequest {
-            files,
-            description: description.map(String::from),
-            public,
-        };
-
+    pub async fn upload(&self, login: &Login, req: &UploadRequest) -> Result<GistResponse> {
         let res = self
             .client
             .post("https://api.github.com/gists")

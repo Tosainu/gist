@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::fs::File;
+use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
 use crate::api;
@@ -10,8 +13,52 @@ pub async fn upload(
     description: Option<&str>,
     files: &[PathBuf],
 ) -> Result<()> {
+    let files = files
+        .iter()
+        .map(|p| {
+            let mut buf = String::new();
+            let mut f = File::open(p)?;
+            f.read_to_string(&mut buf)?;
+
+            let filename = p.file_name().unwrap().to_str().unwrap().to_string();
+            Ok((filename, api::FileMetadata { content: buf }))
+        })
+        .collect::<io::Result<_>>()?;
+
+    let req = api::UploadRequest {
+        files,
+        description: description.map(String::from),
+        public: !secret,
+    };
+
     let client = api::Client::build()?;
-    let res = client.upload(&login, !secret, description, files).await?;
+    let res = client.upload(&login, &req).await?;
+
+    println!("{}", res.html_url);
+
+    Ok(())
+}
+
+pub async fn upload_from_stdin(
+    login: &config::Login,
+    secret: bool,
+    filename: &str,
+    description: Option<&str>,
+) -> Result<()> {
+    let mut buf = String::new();
+    std::io::stdin().read_to_string(&mut buf)?;
+
+    let mut files = HashMap::with_capacity(1);
+    files.insert(filename.into(), api::FileMetadata { content: buf });
+
+    let req = api::UploadRequest {
+        files,
+        description: description.map(String::from),
+        public: !secret,
+    };
+
+    let client = api::Client::build()?;
+    let res = client.upload(&login, &req).await?;
 
     println!("{}", res.html_url);
 
