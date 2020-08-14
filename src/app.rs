@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::api;
 use crate::config;
@@ -52,7 +52,7 @@ pub async fn delete(login: &config::Login, id: &[String]) -> Result<()> {
     Ok(())
 }
 
-pub async fn login(client_id: &str) -> Result<()> {
+pub async fn login<P: AsRef<Path>>(path: P, client_id: &str) -> Result<()> {
     let client = api::Client::build()?;
 
     let vc = client.request_verification_code(client_id, "gist").await?;
@@ -65,9 +65,9 @@ pub async fn login(client_id: &str) -> Result<()> {
 
     let u = client.user(&login).await?;
 
-    let mut cfg = config::load_config().unwrap_or_else(|_| config::Config::new());
+    let mut cfg = config::load_config(path.as_ref()).unwrap_or_else(|_| config::Config::new());
     cfg.insert(u.login, login);
-    config::save_config(&cfg)?;
+    config::save_config(path.as_ref(), &cfg)?;
 
     println!("Success!");
 

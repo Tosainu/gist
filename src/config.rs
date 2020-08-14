@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::fs::{DirBuilder, File};
 use std::io::{BufReader, BufWriter};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -19,32 +19,38 @@ pub enum Login {
 type Username = String;
 pub type Config = BTreeMap<Username, Login>;
 
-pub fn config_path() -> Result<PathBuf> {
-    let config_dir =
-        dirs::config_dir().ok_or_else(|| Error::new(ErrorKind::ConfigDirectoryNotDetected))?;
-    Ok(config_dir.join("gist").join("config.json"))
+pub fn default_config_dir() -> Option<PathBuf> {
+    dirs::config_dir().map(|p| p.join("gist"))
 }
 
-pub fn load_config() -> Result<Config> {
-    let path = config_path()?;
-    let file = File::open(&path)?;
+pub fn default_config_file() -> Option<PathBuf> {
+    default_config_dir().map(|p| p.join("config.json"))
+}
+
+pub fn load_config<P: AsRef<Path>>(path: P) -> Result<Config> {
+    let file = File::open(path.as_ref())?;
     let reader = BufReader::new(file);
     match serde_json::from_reader(reader) {
         Ok(config) => Ok(config),
-        Err(error) => Err(Error::new(ErrorKind::InvalidConfigFormat { path, error })),
+        Err(error) => Err(Error::new(ErrorKind::InvalidConfigFormat {
+            path: path.as_ref().to_path_buf(),
+            error,
+        })),
     }
 }
 
-pub fn save_config(cfg: &Config) -> Result<()> {
-    let path = config_path()?;
-    let dir = path.parent().unwrap();
+pub fn save_config<P: AsRef<Path>>(path: P, cfg: &Config) -> Result<()> {
+    let dir = path.as_ref().parent().unwrap();
     if !dir.exists() {
         DirBuilder::new().recursive(true).create(dir)?;
     }
-    let file = File::create(&path)?;
+    let file = File::create(path.as_ref())?;
     let writer = BufWriter::new(file);
     match serde_json::to_writer_pretty(writer, cfg) {
         Ok(()) => Ok(()),
-        Err(error) => Err(Error::new(ErrorKind::SaveConfigFailure { path, error })),
+        Err(error) => Err(Error::new(ErrorKind::SaveConfigFailure {
+            path: path.as_ref().to_path_buf(),
+            error,
+        })),
     }
 }

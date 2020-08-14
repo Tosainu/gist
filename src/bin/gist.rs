@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use structopt::StructOpt;
 
@@ -7,6 +7,10 @@ use gist::error::{Error, ErrorKind, Result};
 #[derive(Debug, StructOpt)]
 #[structopt(about = "simple GitHub Gist CLI")]
 struct Args {
+    /// Specify configuration file
+    #[structopt(long, parse(from_os_str))]
+    config: Option<PathBuf>,
+
     #[structopt(flatten)]
     account: Account,
 
@@ -85,14 +89,19 @@ struct Delete {
 async fn main() -> Result<()> {
     let args = Args::from_args();
 
+    let path = args.config.or_else(gist::config::default_config_file);
+
     match args.command {
-        Subcommand::Login(opt) => gist::app::login(&opt.client_id).await?,
+        Subcommand::Login(opt) => {
+            let path = path.ok_or_else(|| Error::new(ErrorKind::ConfigDirectoryNotDetected))?;
+            gist::app::login(path, &opt.client_id).await?;
+        }
         Subcommand::Upload(opt) => {
-            let l = select_account(args.account)?;
+            let l = select_account(path, args.account)?;
             gist::app::upload(&l, opt.secret, opt.description.as_deref(), &opt.files).await?;
         }
         Subcommand::List(opt) => {
-            let l = select_account(args.account);
+            let l = select_account(path, args.account);
             if opt.starred {
                 gist::app::list_starred(&l?).await?;
             } else {
@@ -100,7 +109,7 @@ async fn main() -> Result<()> {
             }
         }
         Subcommand::Delete(opt) => {
-            let l = select_account(args.account)?;
+            let l = select_account(path, args.account)?;
             gist::app::delete(&l, &opt.id).await?;
         }
     }
@@ -108,7 +117,10 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn select_account(account: Account) -> Result<gist::config::Login> {
+fn select_account<P: AsRef<Path>>(
+    path: Option<P>,
+    account: Account,
+) -> Result<gist::config::Login> {
     if let Some(token) = account.access_token {
         return Ok(gist::config::Login::OAuth(token));
     }
@@ -117,14 +129,16 @@ fn select_account(account: Account) -> Result<gist::config::Login> {
         if let Some(token) = account.password {
             return Ok(gist::config::Login::PersonalAccessToken { username, token });
         } else {
-            let login = gist::config::load_config()?
+            let path = path.ok_or_else(|| Error::new(ErrorKind::ConfigDirectoryNotDetected))?;
+            let login = gist::config::load_config(path)?
                 .remove(&username)
                 .ok_or_else(|| Error::new(ErrorKind::AccountNotFoundInConfig { name: username }))?;
             return Ok(login);
         }
     }
 
-    let login = gist::config::load_config()?
+    let path = path.ok_or_else(|| Error::new(ErrorKind::ConfigDirectoryNotDetected))?;
+    let login = gist::config::load_config(path)?
         .into_iter()
         .next()
         .map(|l| l.1)
