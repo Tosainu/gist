@@ -11,9 +11,6 @@ struct Args {
     #[structopt(long, parse(from_os_str))]
     config: Option<PathBuf>,
 
-    #[structopt(flatten)]
-    account: Account,
-
     #[structopt(subcommand)]
     command: Subcommand,
 }
@@ -54,6 +51,9 @@ struct Login {
 
 #[derive(Debug, StructOpt)]
 struct Upload {
+    #[structopt(flatten)]
+    account: Account,
+
     /// Upload the files as secret gist
     #[structopt(short)]
     secret: bool,
@@ -73,17 +73,22 @@ struct Upload {
 
 #[derive(Debug, StructOpt)]
 struct List {
+    #[structopt(flatten)]
+    account: Account,
+
     /// List the starred gists
     #[structopt(long, conflicts_with = "username")]
     starred: bool,
 
-    /// Specify user name
-    #[structopt(short)]
-    username: Option<String>,
+    /// List public gists for the specified user
+    author: Option<String>,
 }
 
 #[derive(Debug, StructOpt)]
 struct Delete {
+    #[structopt(flatten)]
+    account: Account,
+
     /// The ID of gist to delete
     #[structopt(required = true)]
     id: Vec<String>,
@@ -101,7 +106,7 @@ async fn main() -> Result<()> {
             gist::app::login(path, &opt.client_id).await?;
         }
         Subcommand::Upload(opt) => {
-            let l = select_account(path, args.account)?;
+            let l = select_account(path, opt.account)?;
             if opt.files.is_empty() {
                 gist::app::upload_from_stdin(
                     &l,
@@ -115,15 +120,15 @@ async fn main() -> Result<()> {
             }
         }
         Subcommand::List(opt) => {
-            let l = select_account(path, args.account);
+            let l = select_account(path, opt.account);
             if opt.starred {
                 gist::app::list_starred(&l?).await?;
             } else {
-                gist::app::list(l.ok().as_ref(), opt.username.as_deref()).await?;
+                gist::app::list(l.ok().as_ref(), opt.author.as_deref()).await?;
             }
         }
         Subcommand::Delete(opt) => {
-            let l = select_account(path, args.account)?;
+            let l = select_account(path, opt.account)?;
             gist::app::delete(&l, &opt.id).await?;
         }
     }
