@@ -65,6 +65,40 @@ pub async fn upload_from_stdin(
     Ok(())
 }
 
+pub async fn update<P: AsRef<Path>>(
+    login: &config::Login,
+    id: &str,
+    description: Option<&str>,
+    files: &[P],
+) -> Result<()> {
+    let req = api::UpdateRequest {
+        files: load_files(files)?,
+        description: description.map(String::from),
+    };
+
+    let client = api::Client::build()?;
+    let res = client.update(&login, id, &req).await?;
+
+    println!("{}", res.html_url);
+
+    Ok(())
+}
+
+fn load_files<P: AsRef<Path>>(files: &[P]) -> io::Result<HashMap<String, api::FileMetadata>> {
+    files
+        .iter()
+        .map(|p| {
+            let p = p.as_ref();
+            let mut buf = String::new();
+            let mut f = File::open(p)?;
+            f.read_to_string(&mut buf)?;
+
+            let filename = p.file_name().unwrap().to_str().unwrap().to_string();
+            Ok((filename, api::FileMetadata { content: buf }))
+        })
+        .collect()
+}
+
 pub async fn list(login: Option<&config::Login>, username: Option<&str>) -> Result<()> {
     let client = api::Client::build()?;
     let r = client.list(login, username).await?;

@@ -49,6 +49,14 @@ pub struct GistResponse {
 pub type ListResponse = Vec<GistResponse>;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct UpdateRequest {
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub files: HashMap<String, FileMetadata>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct UserResponse {
     pub login: String,
     pub html_url: String,
@@ -117,6 +125,29 @@ impl Client {
         let res = self
             .client
             .post("https://api.github.com/gists")
+            .auth(&login)
+            .json(&req)
+            .send()
+            .await?;
+        if res.status().is_success() {
+            Ok(res.json::<GistResponse>().await?)
+        } else {
+            Err(Error::new(ErrorKind::ApiWithStatus {
+                status: res.status(),
+                message: res.text().await?,
+            }))
+        }
+    }
+
+    pub async fn update(
+        &self,
+        login: &Login,
+        id: &str,
+        req: &UpdateRequest,
+    ) -> Result<GistResponse> {
+        let res = self
+            .client
+            .patch(&format!("https://api.github.com/gists/{}", id))
             .auth(&login)
             .json(&req)
             .send()

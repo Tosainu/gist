@@ -36,6 +36,8 @@ enum Subcommand {
     Login(Login),
     /// Upload the files to GitHub Gist
     Upload(Upload),
+    /// Update the gist
+    Update(Update),
     /// Browse the gists
     List(List),
     /// Delete the gists
@@ -68,6 +70,24 @@ struct Upload {
 
     /// Specify the files to upload
     #[structopt(name = "FILES", parse(from_os_str))]
+    files: Vec<PathBuf>,
+}
+
+#[derive(Debug, StructOpt)]
+struct Update {
+    #[structopt(flatten)]
+    account: Account,
+
+    /// Gist ID to update
+    #[structopt(required = true)]
+    id: String,
+
+    /// Add a description to gist
+    #[structopt(short)]
+    description: Option<String>,
+
+    /// Specify the files to add or update
+    #[structopt(short, name = "FILES", parse(from_os_str))]
     files: Vec<PathBuf>,
 }
 
@@ -118,6 +138,10 @@ async fn main() -> Result<()> {
             } else {
                 gist::app::upload(&l, opt.secret, opt.description.as_deref(), &opt.files).await?;
             }
+        }
+        Subcommand::Update(opt) => {
+            let l = select_account(path, opt.account)?;
+            gist::app::update(&l, &opt.id, opt.description.as_deref(), &opt.files).await?;
         }
         Subcommand::List(opt) => {
             let l = select_account(path, opt.account);
