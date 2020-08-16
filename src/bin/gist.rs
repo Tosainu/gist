@@ -1,5 +1,4 @@
 use std::path::{Path, PathBuf};
-
 use structopt::StructOpt;
 
 use gist::error::{Error, ErrorKind, Result};

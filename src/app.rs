@@ -1,32 +1,20 @@
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, Read};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::api;
 use crate::config;
 use crate::error::Result;
 
-pub async fn upload(
+pub async fn upload<P: AsRef<Path>>(
     login: &config::Login,
     secret: bool,
     description: Option<&str>,
-    files: &[PathBuf],
+    files: &[P],
 ) -> Result<()> {
-    let files = files
-        .iter()
-        .map(|p| {
-            let mut buf = String::new();
-            let mut f = File::open(p)?;
-            f.read_to_string(&mut buf)?;
-
-            let filename = p.file_name().unwrap().to_str().unwrap().to_string();
-            Ok((filename, api::FileMetadata { content: buf }))
-        })
-        .collect::<io::Result<_>>()?;
-
     let req = api::UploadRequest {
-        files,
+        files: load_files(files)?,
         description: description.map(String::from),
         public: !secret,
     };

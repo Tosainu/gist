@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize};
-
 use reqwest::header::{HeaderValue, ACCEPT, AUTHORIZATION};
-
+use serde::{Deserialize, Serialize};
 use tokio::time;
 
 use crate::config::Login;
@@ -270,7 +268,6 @@ impl Client {
                 .json(&req)
                 .send()
                 .await?;
-
             if res.status().is_success() {
                 match res.json::<AccessTokenResponse>().await? {
                     AccessTokenResponse::AccessToken { access_token } => {
