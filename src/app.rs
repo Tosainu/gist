@@ -58,9 +58,17 @@ pub async fn update<P: AsRef<Path>>(
     id: &str,
     description: Option<&str>,
     files: &[P],
+    files_to_remove: &[String],
 ) -> Result<()> {
+    let files = load_files(files)?;
+    let files = files
+        .into_iter()
+        .map(|(k, v)| (k, Some(v)))
+        .chain(files_to_remove.iter().cloned().map(|s| (s, None)))
+        .collect();
+
     let req = api::UpdateRequest {
-        files: load_files(files)?,
+        files,
         description: description.map(String::from),
     };
 

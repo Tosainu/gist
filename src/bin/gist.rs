@@ -86,8 +86,12 @@ struct Update {
     description: Option<String>,
 
     /// Specify the files to add or update
-    #[structopt(short, name = "FILES", parse(from_os_str))]
+    #[structopt(short, value_name = "FILES", parse(from_os_str))]
     files: Vec<PathBuf>,
+
+    /// Specify the file names to remove
+    #[structopt(short = "r", value_name = "FILES")]
+    files_to_remove: Vec<String>,
 }
 
 #[derive(Debug, StructOpt)]
@@ -140,7 +144,14 @@ async fn main() -> Result<()> {
         }
         Subcommand::Update(opt) => {
             let l = select_account(path, opt.account)?;
-            gist::app::update(&l, &opt.id, opt.description.as_deref(), &opt.files).await?;
+            gist::app::update(
+                &l,
+                &opt.id,
+                opt.description.as_deref(),
+                &opt.files,
+                &opt.files_to_remove,
+            )
+            .await?;
         }
         Subcommand::List(opt) => {
             let l = select_account(path, opt.account);

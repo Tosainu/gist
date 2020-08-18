@@ -49,7 +49,7 @@ pub type ListResponse = Vec<GistResponse>;
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct UpdateRequest {
     #[serde(skip_serializing_if = "HashMap::is_empty")]
-    pub files: HashMap<String, FileMetadata>,
+    pub files: HashMap<String, Option<FileMetadata>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 }
