@@ -118,9 +118,16 @@ struct Delete {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() {
     let args = Args::from_args();
 
+    if let Err(e) = run(args).await {
+        eprintln!("{}", e);
+        std::process::exit(1);
+    }
+}
+
+async fn run(args: Args) -> Result<()> {
     let path = args.config.or_else(gist::config::default_config_file);
 
     match args.command {
