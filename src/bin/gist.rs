@@ -20,8 +20,8 @@ struct Account {
     #[structopt(short = "t", conflicts_with_all = &["username", "password"])]
     access_token: Option<String>,
 
-    /// Specify user name / saved account name
-    #[structopt(short)]
+    /// Specify user name
+    #[structopt(short, requires = "password")]
     username: Option<String>,
 
     /// Specify personal access token
@@ -185,23 +185,10 @@ fn select_account<P: AsRef<Path>>(
         return Ok(gist::config::Login::OAuth(token));
     }
 
-    if let Some(username) = account.username {
-        if let Some(token) = account.password {
-            return Ok(gist::config::Login::PersonalAccessToken { username, token });
-        } else {
-            let path = path.ok_or_else(|| Error::new(ErrorKind::ConfigDirectoryNotDetected))?;
-            let login = gist::config::load_config(path)?
-                .remove(&username)
-                .ok_or_else(|| Error::new(ErrorKind::AccountNotFoundInConfig { name: username }))?;
-            return Ok(login);
-        }
+    if let Some((username, token)) = account.username.zip(account.password) {
+        return Ok(gist::config::Login::PersonalAccessToken { username, token });
     }
 
     let path = path.ok_or_else(|| Error::new(ErrorKind::ConfigDirectoryNotDetected))?;
-    let login = gist::config::load_config(path)?
-        .into_iter()
-        .next()
-        .map(|l| l.1)
-        .ok_or_else(|| Error::new(ErrorKind::EmptyConfigurationFile))?;
-    Ok(login)
+    Ok(gist::config::load_config(path)?)
 }

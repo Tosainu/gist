@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::fs::{DirBuilder, File};
 use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
@@ -16,9 +15,6 @@ pub enum Login {
     PersonalAccessToken { username: String, token: String },
 }
 
-type Username = String;
-pub type Config = BTreeMap<Username, Login>;
-
 pub fn default_config_dir() -> Option<PathBuf> {
     dirs::config_dir().map(|p| p.join("gist"))
 }
@@ -27,7 +23,7 @@ pub fn default_config_file() -> Option<PathBuf> {
     default_config_dir().map(|p| p.join("config.json"))
 }
 
-pub fn load_config<P: AsRef<Path>>(path: P) -> Result<Config> {
+pub fn load_config<P: AsRef<Path>>(path: P) -> Result<Login> {
     let file = File::open(path.as_ref())?;
     let reader = BufReader::new(file);
     match serde_json::from_reader(reader) {
@@ -39,7 +35,7 @@ pub fn load_config<P: AsRef<Path>>(path: P) -> Result<Config> {
     }
 }
 
-pub fn save_config<P: AsRef<Path>>(path: P, cfg: &Config) -> Result<()> {
+pub fn save_config<P: AsRef<Path>>(path: P, cfg: &Login) -> Result<()> {
     let dir = path.as_ref().parent().unwrap();
     if !dir.exists() {
         DirBuilder::new().recursive(true).create(dir)?;

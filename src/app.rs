@@ -140,11 +140,7 @@ pub async fn login<P: AsRef<Path>>(path: P, client_id: &str) -> Result<()> {
         .request_access_token(client_id, &vc.device_code, vc.interval)
         .await?;
 
-    let u = client.user(&login).await?;
-
-    let mut cfg = config::load_config(path.as_ref()).unwrap_or_else(|_| config::Config::new());
-    cfg.insert(u.login, login);
-    config::save_config(path.as_ref(), &cfg)?;
+    config::save_config(path.as_ref(), &login)?;
 
     println!("Success!");
 

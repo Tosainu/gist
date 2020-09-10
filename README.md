@@ -21,10 +21,8 @@ OAuth2 access token will store in `~/.config/gist/config.json`.
 
     $ cat ~/.config/gist/config.json
     {
-      "Tosainu": {
-        "type": "oauth",
-        "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-      }
+      "type": "oauth",
+      "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
     }
 
 ### Upload the files

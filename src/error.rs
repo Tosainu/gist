@@ -24,10 +24,6 @@ pub enum ErrorKind {
         message: String,
     },
     ConfigDirectoryNotDetected,
-    EmptyConfigurationFile,
-    AccountNotFoundInConfig {
-        name: String,
-    },
     InvalidConfigFormat {
         path: PathBuf,
         error: serde_json::Error,
@@ -57,10 +53,6 @@ impl fmt::Display for ErrorKind {
             ),
             ErrorKind::ConfigDirectoryNotDetected =>
                 write!(f, "Default configuration directory not detected. $HOME or $XDG_CONFIG_FIR may not set"),
-            ErrorKind::EmptyConfigurationFile =>
-                write!(f, "Empty configuration file"),
-            ErrorKind::AccountNotFoundInConfig { name } =>
-                write!(f, "Cannot find account '{}' in configuration file", name),
             ErrorKind::InvalidConfigFormat { path, error } =>
                 write!(f,"Cannot parse configuration file '{}': ", path.display()).and_then(move |_| error.fmt(f)),
             ErrorKind::SaveConfigFailure { path, error } =>
