@@ -117,13 +117,18 @@ struct Delete {
     id: Vec<String>,
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
     let args = Args::from_args();
 
-    if let Err(e) = run(args).await {
+    let mut rt = tokio::runtime::Builder::new()
+        .basic_scheduler()
+        .enable_all()
+        .build()
+        .unwrap();
+
+    if let Err(e) = rt.block_on(run(args)) {
         eprintln!("{}", e);
-        std::process::exit(1);
+        std::process::exit(3);
     }
 }
 
